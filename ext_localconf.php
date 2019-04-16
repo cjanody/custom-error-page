@@ -46,5 +46,10 @@ call_user_func(
             ['source' => 'EXT:custom_error_page/Resources/Public/Icons/pi1.svg']
         );
 
+        if (\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::isLoaded('realurl')) {
+            $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tslib/class.tslib_fe.php']['checkAlternativeIdMethods-PostProc']['realurl'] =
+                'Bitmotion\\CustomErrorPage\\Utility\\Decoder\\UrlDecoder->decode';
+        }
+
     }
 );

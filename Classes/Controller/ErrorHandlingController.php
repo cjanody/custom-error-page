@@ -27,9 +27,10 @@ namespace Bitmotion\CustomErrorPage\Controller;
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
 
+use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
-
 
 /**
  * Class ErrorHandlingController
@@ -46,18 +47,56 @@ class ErrorHandlingController extends ActionController
     public function showAction(): string
     {
         switch (GeneralUtility::_GET('reason')) {
-            case 'Page is not available in default language.':
             case 'Page is not available in the requested language.':
             case 'Page is not available in the requested language (strict).':
             case 'Page is not available in the requested language (fallbacks did not apply).':
-                $contentElements = $this->settings['pageNotTranslated'];
+                $refererQueryArray = GeneralUtility::explodeUrl2Array(
+                    parse_url(GeneralUtility::getIndpEnv('HTTP_REFERER'), PHP_URL_QUERY),
+                    true
+                );
+
+                $refererTsfe = GeneralUtility::makeInstance(
+                    TypoScriptFrontendController::class,
+                    null,
+                    $refererQueryArray['id'] ?: null,
+                    $refererQueryArray['type'] ?: 0,
+                    $refererQueryArray['no_cache'] ?: '',
+                    $refererQueryArray['cHash'] ?: '',
+                    null,
+                    $refererQueryArray['MP'] ?: '',
+                    $refererQueryArray['RDCT'] ?: ''
+                );
+
+                $refererTsfe->siteScript = ltrim(GeneralUtility::getIndpEnv('HTTP_REFERER'), '/');
+                $refererTsfe->checkAlternativeIdMethods();
+                $refererTsfe->calculateLinkVars();
+
+                //Override current linkVars (Basically removes L parameter)
+                $GLOBALS['TSFE']->linkVars = $refererTsfe->linkVars;
+
+                $parameter = $refererTsfe->id;
+                if ($refererTsfe->type && MathUtility::canBeInterpretedAsInteger($refererTsfe->type)) {
+                    $parameter .= ',' . $refererTsfe->type;
+                }
+
+                $refererQueryArray  = ArrayUtility::arrayDiffAssocRecursive($refererQueryArray, ['id' => 0, 'L' => 0]);
+                $refererQueryParams = GeneralUtility::implodeArrayForUrl('', $refererQueryArray, '', false, true);
+
+                $this->view->assignMultiple([
+                                                'refererQueryParameter'        => $parameter,
+                                                'refererQueryAdditionalParams' => $refererQueryParams,
+                                                'contentElements'              => $this->settings['pageNotTranslated'],
+                                            ]);
+
+                $content = $this->view->render();
+
+                //Reset linkVars
+                $GLOBALS['TSFE']->calculateLinkVars();
                 break;
             default:
-                $contentElements = $this->settings['pageNotFound'];
+                $content = $this->view->assign('contentElements', $this->settings['pageNotFound'])->render();
         }
 
-        $this->view->assign('contentElements', $contentElements);
-
-        return $this->view->render();
+        return $content;
     }
 }
