@@ -2,7 +2,9 @@
 
 <f:cObject typoscriptObjectPath="lib.tx_customerrorpage.contentElementRendering">{contentElements}</f:cObject>
 
-<f:link.typolink parameter="{refererQueryParameter}" additionalParams="{refererQueryAdditionalParams}">
-	<f:translate key="tx_custom_error_page_pi1.fallbackUrlTitle"/>
-</f:link.typolink>
+<f:if condition="{refererQueryParameter}">
+	<f:link.typolink parameter="{refererQueryParameter}" additionalParams="{refererQueryAdditionalParams}">
+		<f:translate key="tx_custom_error_page_pi1.fallbackUrlTitle"/>
+	</f:link.typolink>
+</f:if>
 </html>
