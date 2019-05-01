@@ -69,17 +69,15 @@ class ErrorHandlingController extends ActionController
 
                 $refererTsfe->siteScript = ltrim(GeneralUtility::getIndpEnv('HTTP_REFERER'), '/');
                 $refererTsfe->checkAlternativeIdMethods();
-                $refererTsfe->calculateLinkVars();
-
-                //Override current linkVars (Basically removes L parameter)
-                $GLOBALS['TSFE']->linkVars = $refererTsfe->linkVars;
 
                 $parameter = $refererTsfe->id;
                 if ($refererTsfe->type && MathUtility::canBeInterpretedAsInteger($refererTsfe->type)) {
                     $parameter .= ',' . $refererTsfe->type;
                 }
 
-                $refererQueryArray  = ArrayUtility::arrayDiffAssocRecursive($refererQueryArray, ['id' => 0, 'L' => 0]);
+                $refererQueryArray  = array_merge($refererQueryArray, GeneralUtility::_GET());
+                $refererQueryArray  = ArrayUtility::arrayDiffAssocRecursive($refererQueryArray,
+                                                                            ['id' => 0, 'L' => 0, 'reason' => 0]);
                 $refererQueryParams = GeneralUtility::implodeArrayForUrl('', $refererQueryArray, '', false, true);
 
                 $this->view->assignMultiple([
@@ -88,9 +86,23 @@ class ErrorHandlingController extends ActionController
                                                 'contentElements'              => $this->settings['pageNotTranslated'],
                                             ]);
 
+                // Set language to default
+                $refererTsfe->sys_language_uid = ($refererTsfe->sys_language_content = 0);
+                $refererTsfe->initLLvars();
+                $refererTsfe->calculateLinkVars();
+
+                // Override current language
+                $GLOBALS['TSFE']->sys_language_uid = $refererTsfe->sys_language_uid;
+                // Override current linkVars (Basically removes L parameter)
+                $GLOBALS['TSFE']->linkVars = $refererTsfe->linkVars;
+
                 $content = $this->view->render();
 
-                //Reset linkVars
+                // Reset language to current
+                $GLOBALS['TSFE']->sys_language_uid =
+                    ($GLOBALS['TSFE']->sys_language_content =
+                        (int)$GLOBALS['TSFE']->config['config']['sys_language_uid']);
+                $GLOBALS['TSFE']->initLLvars();
                 $GLOBALS['TSFE']->calculateLinkVars();
                 break;
             default:
